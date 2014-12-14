@@ -15,10 +15,13 @@ h2. Usage Examples
 
 * Creating an model
 
-        val dataModel = new DataModel(dataSource)
+```scala
+val dataModel = new DataModel(dataSource)
+```
 
 * Some CRUDs.
-    
+
+```scala
 val employees = dataModel.rows('EMPLOYEE, offset=10, count=10)
 
 dataModel.insert('EMPLOYEE, 'ID->100, 'NAME->"Jack", 'ROLE->"Manager")
@@ -31,15 +34,9 @@ dataModel.entities // 'EMPLOYEE, 'DEPARTMENT, 'OFFICE, ...
 
 dataModel.rows('EMPLOYEE, 'ROLE->"Manager")
 
-
+```
 
 * Extensions.
 
 ** dbcrud-rest: Exposes a REST interface to a backend database.
  
-
-
-
-
-
-
