@@ -22,7 +22,7 @@ val dataModel = new DataModel(dataSource)
 * Some CRUDs.
 
 ```scala
-val employees = dataModel.rows('EMPLOYEE, offset=10, count=10)
+val employees = dataModel.select('EMPLOYEE, offset=10, count=10)
 
 dataModel.insert('EMPLOYEE, 'ID->100, 'NAME->"Jack", 'ROLE->"Manager")
 
@@ -30,9 +30,11 @@ dataModel.update('EMPLOYEE, 100, 'ROLE->"Supervisor")
 
 dataModel.delete('EMPLOYEE, 100)
 
+dataModel.deleteWhere('EMPLOYEE, 'ROLE->"Manager")
+
 dataModel.entities // 'EMPLOYEE, 'DEPARTMENT, 'OFFICE, ...
 
-dataModel.rows('EMPLOYEE, 'ROLE->"Manager")
+dataModel.select('EMPLOYEE, 'ROLE->"Manager")
 
 ```
 
