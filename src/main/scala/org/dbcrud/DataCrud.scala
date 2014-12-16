@@ -5,11 +5,11 @@ package org.dbcrud
  */
 case class Column(name:Symbol, dbType:Int)
 
-class QueryData(columns:Vector[Column], rows:Iterable[Vector[Any]]){
+class QueryData(columns:Vector[Column], rows:Iterable[Array[Any]]){
   def asMaps = rows.map(r=>columns.map(_.name).zip(r).toMap)
 }
 
-trait DbCrud {
+trait DataCrud {
 
   type Row = Seq[(Symbol,Any)]
 
@@ -21,9 +21,9 @@ trait DbCrud {
 
   def delete(table:Symbol,  id:Any):Int
 
-  def select(table:Symbol, offset:Int=0, count:Int=Int.MaxValue, filters:Seq[(Symbol, Any)]):QueryData
+  def select(table:Symbol, offset:Int=0, count:Int=Int.MaxValue):QueryData
 
-  def selectAll(table:Symbol):QueryData
+  def selectWhere(table:Symbol, filters:(Symbol, Any)*):QueryData
 
 }
 
