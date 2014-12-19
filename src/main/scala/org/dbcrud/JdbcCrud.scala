@@ -51,10 +51,25 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
     }
   }
 
-  override def update(table: Symbol, id: Any, values: (Symbol, Any)*): Int = {
+  override def update(table: Symbol, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip
     ds.doWith{conn=>
-      conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(",") + " where  = ?")
+      conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(",")).executeUpdate()
+    }
+  }
+
+  override def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Int = {
+    val (cols, vals) = values.unzip
+    ds.doWith{conn=>
+      val ps = conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(",")
+        + " WHERE " + where.asSql)
+      values.zipWithIndex.foreach{t=>
+        ps.setObject(t._2+1, t._1)
+      }
+      where.constants.zipWithIndex.foreach{t=>
+        ps.setObject(values.size + t._2+1, t._1)
+      }
+      ps.executeUpdate()
     }
   }
 

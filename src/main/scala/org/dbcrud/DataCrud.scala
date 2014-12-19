@@ -24,7 +24,9 @@ trait DataCrud {
 
   def insert(table:Symbol, values: (Symbol,Any)*):Int
 
-  def update(table:Symbol, id:Any, values: (Symbol, Any)*):Int
+  def update(table:Symbol, values: (Symbol, Any)*):Int
+
+  def updateWhere(table:Symbol, where : Predicate, values: (Symbol, Any)*):Int
 
   def delete(table:Symbol,  id:Any):Int
 
@@ -34,4 +36,41 @@ trait DataCrud {
 
 }
 
+object ColumnOps{
+  implicit case class PredicateColumn(column:Symbol) extends AnyVal{
+    def is(other:Any) = new BinaryExpression(column, other, "=")
+    def lte(other:Any) = new BinaryExpression(column, other, "<=")
+    def lt(other:Any) = new BinaryExpression(column, other, "<")
+    def gte(other:Any) = new BinaryExpression(column, other, ">=")
+    def gt(other:Any) = new BinaryExpression(column, other, ">")
+  }
+  
+  implicit case class RichCondition(condition: Predicate) extends AnyVal{
+    def and(other:Predicate) = new CompositePredicate(condition, other, "and")
+    def or(other:Predicate) = new CompositePredicate(condition, other, "or")
+  }
+  
+}
 
+trait Predicate{
+  def asSql:String
+  def constants:Seq[Any]
+}
+
+class BinaryExpression(left:Symbol, right:Any, op:String) extends Predicate{
+  override def asSql: String = right match {
+    case other:Symbol => left.name + op + other.name
+    case _ => left.name + op + "?"
+  }
+
+  override def constants: Seq[Any] = right match{
+    case other:Symbol => Seq()
+    case value => Seq(value)
+  }
+}
+
+class CompositePredicate(left:Predicate, right: Predicate, op:String) extends Predicate{
+  override def asSql: String = s"(${left.asSql}) $op (${right.asSql})"
+
+  override def constants: Seq[Any] = left.constants ++ right.constants
+}

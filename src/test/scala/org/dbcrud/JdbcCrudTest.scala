@@ -4,6 +4,7 @@ import java.sql.Types
 import java.util.Date
 
 import org.h2.jdbcx.JdbcDataSource
+import ColumnOps._
 
 /**
  * Created by rinconj on 15/12/14.
@@ -31,7 +32,8 @@ class JdbcCrudTest extends org.specs2.mutable.Specification {
   }
 
   "update data" in {
-    dbCrud.update('ACCOUNT, 1, 'name->"account updated") shouldEqual(1)
+    dbCrud.update('ACCOUNT, 'name->"account updated") shouldEqual(1)
+    dbCrud.updateWhere('ACCOUNT, ('id is 1) or ('name is "account1"), 'name -> "Account 1") shouldEqual(1)
   }
 
   "select data" in {
