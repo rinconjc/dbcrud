@@ -9,6 +9,8 @@ import java.util.logging.Logger
 class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
   private val logger  = Logger.getLogger(getClass.getName)
 
+  private lazy val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
+
   private lazy val tables = ds.doWith {conn=>
     val rs = conn.getMetaData.getTables(null, schema, "%", Array("TABLE"))
     collect(rs, _.getString("TABLE_NAME"))
