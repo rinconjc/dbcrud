@@ -24,7 +24,7 @@ trait DataCrud {
 
   def insert(table:Symbol, values: (Symbol,Any)*):Int
 
-  def update(table:Symbol, values: (Symbol, Any)*):Int
+  def updateAll(table:Symbol, values: (Symbol, Any)*):Int
 
   def updateWhere(table:Symbol, where : Predicate, values: (Symbol, Any)*):Int
 
@@ -37,7 +37,7 @@ trait DataCrud {
 }
 
 object ColumnOps{
-  implicit case class PredicateColumn(column:Symbol) extends AnyVal{
+  implicit class PredicateColumn(val column:Symbol) extends AnyVal{
     def is(other:Any) = new BinaryExpression(column, other, "=")
     def lte(other:Any) = new BinaryExpression(column, other, "<=")
     def lt(other:Any) = new BinaryExpression(column, other, "<")
@@ -45,7 +45,7 @@ object ColumnOps{
     def gt(other:Any) = new BinaryExpression(column, other, ">")
   }
   
-  implicit case class RichCondition(condition: Predicate) extends AnyVal{
+  implicit class RichCondition(val condition: Predicate) extends AnyVal{
     def and(other:Predicate) = new CompositePredicate(condition, other, "and")
     def or(other:Predicate) = new CompositePredicate(condition, other, "or")
   }

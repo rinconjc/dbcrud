@@ -32,8 +32,9 @@ class JdbcCrudTest extends org.specs2.mutable.Specification {
   }
 
   "update data" in {
-    dbCrud.update('ACCOUNT, 'name->"account updated") shouldEqual(1)
-    dbCrud.updateWhere('ACCOUNT, ('id is 1) or ('name is "account1"), 'name -> "Account 1") shouldEqual(1)
+    dbCrud.insert('ACCOUNT, 'id->99, 'name->"account 99", 'opened_at->new Date)
+    dbCrud.updateAll('ACCOUNT, 'name->"account updated") should beGreaterThan(0)
+    dbCrud.updateWhere('ACCOUNT, ('id is 99) or ('name is "account 99"), 'name -> "Account 99") shouldEqual(1)
   }
 
   "select data" in {

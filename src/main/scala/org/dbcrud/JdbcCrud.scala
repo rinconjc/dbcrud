@@ -20,6 +20,12 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
     }).toMap
   }
 
+  private def primaryKeys(table:String) = ds.doWith{conn=>
+    collect(conn.getMetaData.getPrimaryKeys(null, null, table), rs=>{
+      rs.getString("COLUMN_NAME")->rs.getInt("KEY_SEQ")
+    }).sortBy(_._2).map(_._1)
+  }
+
   private def collect[R](rs:ResultSet, rowMapper:ResultSet=>R):Seq[R]={
     Iterator.continually{
       if(rs.next()){
@@ -51,10 +57,14 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
     }
   }
 
-  override def update(table: Symbol, values: (Symbol, Any)*): Int = {
+  override def updateAll(table: Symbol, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip
     ds.doWith{conn=>
-      conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(",")).executeUpdate()
+      val ps = conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(","))
+      vals.zipWithIndex.foreach{t=>
+        ps.setObject(t._2+1,t._1)
+      }
+      ps.executeUpdate()
     }
   }
 
@@ -77,5 +87,22 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
 
   override def delete(table: Symbol, id: Any): Int = ???
 
-  override def select(table: Symbol, offset: Int, count: Int): QueryData = ???
+  override def select(table: Symbol, offset: Int=0, count: Int=0): QueryData = {
+    ds.doWith{conn=>
+      val ps = conn.prepareStatement(s"SELECT * FROM ${table.name}")
+      if(offset>0){
+
+      }
+      if(count>0){
+        ps.setMaxRows(count)
+      }
+      val rs = ps.executeQuery()
+      val rsMeta = rs.getMetaData
+      val columns = for(c<-1 to rsMeta.getColumnCount) yield Column(Symbol(rsMeta.getColumnName(c)), rsMeta.getColumnType(c))
+      val rows = collect(rs, { rs =>
+        Array.range(1, columns.size + 1).map(rs.getObject(_).asInstanceOf[Any])
+      })
+      new QueryData(columns, rows)
+    }
+  }
 }
