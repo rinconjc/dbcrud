@@ -1,15 +1,24 @@
 package org.dbcrud
 
 import java.sql.ResultSet
-import java.util.logging.Logger
+import java.util.logging.{Level, Logger}
+
+import scala.util.{Failure, Try}
 
 /**
  * Created by rinconj on 16/12/14.
  */
-class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
+
+trait DbmsDialect{
+
+}
+
+class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDialect = null) extends DataCrud{
   private val logger  = Logger.getLogger(getClass.getName)
 
   private lazy val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
+
+  private val dialect = Option(dbmsDialect).orElse(inferDialect(ds))
 
   private lazy val tables = ds.doWith {conn=>
     val rs = conn.getMetaData.getTables(null, schema, "%", Array("TABLE"))
@@ -20,6 +29,20 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null) extends DataCrud{
     collect(conn.getMetaData.getTypeInfo, rs=>{
       rs.getInt("DATA_TYPE")->rs.getString("TYPE_NAME")
     }).toMap
+  }
+
+  private def inferDialect(ds:ManagedDataSource):Option[DbmsDialect]={
+    val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
+
+    Try(Class.forName(s"${dbms}SqlDialect")).map(_.newInstance().asInstanceOf[DbmsDialect]).recoverWith{
+      case e:Exception =>
+        logger.log(Level.SEVERE, "failed instantiating dialect class", e)
+        Failure(e)
+    }.recoverWith{
+      case e:Exception =>
+        logger.warning(s"no dialect found in class path: ${e.getMessage}")
+        Failure(e)
+    }.toOption
   }
 
   private def primaryKeys(table:String) = ds.doWith{conn=>
