@@ -3,15 +3,10 @@ package org.dbcrud
 import java.sql.ResultSet
 import java.util.logging.{Level, Logger}
 
+import org.dbcrud.dialects.DbmsDialect
+
 import scala.util.{Failure, Try}
-
-/**
- * Created by rinconj on 16/12/14.
- */
-
-trait DbmsDialect{
-
-}
+import scalaz.Scalaz._
 
 class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDialect = null) extends DataCrud{
   private val logger  = Logger.getLogger(getClass.getName)
@@ -114,20 +109,23 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   override def select(table: Symbol, offset: Int=0, count: Int=0): QueryData = {
     ds.doWith{conn=>
-      val ps = conn.prepareStatement(s"SELECT * FROM ${table.name}")
-      if(offset>0){
+      val ps = (offset>0).option().flatMap{_=>
+        dialect.map(_.selectStatement(conn, table.name, offset, count))
+      }.getOrElse(conn.prepareStatement(s"SELECT * FROM ${table.name}"))
 
-      }
       if(count>0){
         ps.setMaxRows(count)
       }
-      val rs = ps.executeQuery()
-      val rsMeta = rs.getMetaData
-      val columns = for(c<-1 to rsMeta.getColumnCount) yield Column(Symbol(rsMeta.getColumnName(c)), rsMeta.getColumnType(c))
-      val rows = collect(rs, { rs =>
-        Array.range(1, columns.size + 1).map(rs.getObject(_).asInstanceOf[Any])
-      })
-      new QueryData(columns, rows)
+      toQueryData(ps.executeQuery())
     }
+  }
+
+  private def toQueryData(rs: ResultSet): QueryData = {
+    val rsMeta = rs.getMetaData
+    val columns = for (c <- 1 to rsMeta.getColumnCount) yield Column(Symbol(rsMeta.getColumnName(c)), rsMeta.getColumnType(c))
+    val rows = collect(rs, { rs =>
+      Array.range(1, columns.size + 1).map(rs.getObject(_).asInstanceOf[Any])
+    })
+    new QueryData(columns, rows)
   }
 }
