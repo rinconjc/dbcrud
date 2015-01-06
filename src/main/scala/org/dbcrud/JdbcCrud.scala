@@ -29,7 +29,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   private def inferDialect(ds:ManagedDataSource):Option[DbmsDialect]={
     val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
 
-    Try(Class.forName(s"${dbms}SqlDialect")).recoverWith{
+    Try(Class.forName(s"org.dbcrud.dialects.${dbms}SqlDialect")).recoverWith{
       case e:Exception =>
         logger.warning(s"no dialect found in classpath: $e")
         Failure(e)

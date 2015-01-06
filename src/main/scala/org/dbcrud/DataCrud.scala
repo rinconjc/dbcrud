@@ -4,16 +4,24 @@ package org.dbcrud
  * Created by rinconj on 15/12/14.
  */
 
-object DataCrud{
-  type Row = Seq[(Column,Any)]
-}
-
 case class Column(name:Symbol, dbType:Int)
 
-class QueryData(columns:Seq[Column], rows:Iterable[Array[Any]]) extends Iterable[DataCrud.Row]{
-  def asMaps = rows.map(r=>columns.map(_.name).zip(r).toMap)
+trait Row extends Traversable[(Column, Any)]{
+  def apply[T](column:Symbol):T
+}
 
-  override def iterator = rows.iterator.map(values=>columns.zip(values).toSeq)
+class QueryData(columns:Seq[Column], rows:Iterable[Array[Any]]) extends Iterable[Row]{
+  def asMaps = rows.map(r=>columns.map(_.name).zip(r).toMap)
+  private lazy val columnToIndex = columns.map(_.name).zipWithIndex.toMap
+
+  override def iterator: Iterator[Row] = rows.iterator.map(values=>new RowImpl(values))
+
+  class RowImpl(values:Array[Any]) extends Row{
+
+    override def foreach[U](f: ((Column, Any)) => U): Unit = columns.zip(values).foreach(f)
+
+    def apply[T](column:Symbol):T = values(columnToIndex(column)).asInstanceOf[T]
+  }
 }
 
 trait DataCrud {

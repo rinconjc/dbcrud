@@ -38,7 +38,10 @@ class JdbcCrudTest extends org.specs2.mutable.Specification {
   }
 
   "select data" in {
-    dbCrud.select('ACCOUNT) should not beEmpty
+    for(i<-2 to 10) dbCrud.insert('ACCOUNT, 'id->i, 'name->s"account $i", 'opened_at->new Date)
+    val result = dbCrud.select('ACCOUNT, 1, 2)
+    result should haveSize(2)
+    result.head[Int]('ID) should_== 2
   }
 
 }
