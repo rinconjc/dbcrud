@@ -34,15 +34,15 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   private def inferDialect(ds:ManagedDataSource):Option[DbmsDialect]={
     val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
 
-    Try(Class.forName(s"${dbms}SqlDialect")).map(_.newInstance().asInstanceOf[DbmsDialect]).recoverWith{
+    Try(Class.forName(s"${dbms}SqlDialect")).recoverWith{
+      case e:Exception =>
+        logger.warning(s"no dialect found in classpath: $e")
+        Failure(e)
+    }.flatMap(cls=>Try(cls.newInstance().asInstanceOf[DbmsDialect]).recoverWith{
       case e:Exception =>
         logger.log(Level.SEVERE, "failed instantiating dialect class", e)
         Failure(e)
-    }.recoverWith{
-      case e:Exception =>
-        logger.warning(s"no dialect found in class path: ${e.getMessage}")
-        Failure(e)
-    }.toOption
+    }).toOption
   }
 
   private def primaryKeys(table:String) = ds.doWith{conn=>
