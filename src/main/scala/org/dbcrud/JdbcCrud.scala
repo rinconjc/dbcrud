@@ -1,6 +1,6 @@
 package org.dbcrud
 
-import java.sql.ResultSet
+import java.sql.{DatabaseMetaData, ResultSet}
 import java.util.logging.{Level, Logger}
 
 import org.dbcrud.dialects.DbmsDialect
@@ -17,7 +17,10 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private lazy val tables = ds.doWith {conn=>
     val rs = conn.getMetaData.getTables(null, schema, "%", Array("TABLE"))
-    collect(rs, _.getString("TABLE_NAME"))
+    collect(rs, {rs=>
+      val tableName = rs.getString("TABLE_NAME")
+      DbTable(Symbol(tableName), columns(tableName), primaryKeys(tableName))
+    })
   }
 
   private lazy val typeMappings = ds.doWith{conn=>
@@ -43,7 +46,14 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   private def primaryKeys(table:String) = ds.doWith{conn=>
     collect(conn.getMetaData.getPrimaryKeys(null, null, table), rs=>{
       rs.getString("COLUMN_NAME")->rs.getInt("KEY_SEQ")
-    }).sortBy(_._2).map(_._1)
+    }).sortBy(_._2).map(p=>Symbol(p._1))
+  }
+
+  private def columns(table:String) = ds.doWith{conn=>
+    collect(conn.getMetaData.getColumns(null,null,table,"%"), {rs=>
+      DbColumn(Symbol(rs.getString("COLUMN_NAME")), rs.getInt("DATA_TYPE"), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
+        rs.getInt("NULLABLE")==DatabaseMetaData.attributeNullable, rs.getString("IS_AUTOINCREMENT")=="YES", rs.getString("IS_GENERATEDCOLUMN")=="YES")
+    })
   }
 
   private def collect[R](rs:ResultSet, rowMapper:ResultSet=>R):Seq[R]={
@@ -63,7 +73,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
-  override def tableNames: Iterable[String] = tables
+  override def tableNames: Iterable[Symbol] = tables.map(_.name)
 
   override def insert(table: Symbol, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip
@@ -78,21 +88,13 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   }
 
   override def updateAll(table: Symbol, values: (Symbol, Any)*): Int = {
-    val (cols, vals) = values.unzip
-    ds.doWith{conn=>
-      val ps = conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(","))
-      vals.zipWithIndex.foreach{t=>
-        ps.setObject(t._2+1,t._1)
-      }
-      ps.executeUpdate()
-    }
+    updateWhere(table, EmptyPredicate, values: _*)
   }
 
   override def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip
     ds.doWith{conn=>
-      val ps = conn.prepareStatement(s"UPDATE ${table.name} SET " + cols.map(_.name + " = ?").mkString(",")
-        + " WHERE " + where.asSql)
+      val ps = conn.prepareStatement(s"UPDATE ${table.name} SET ${cols.map(_.name + " = ?").mkString(",")} ${where.whereSql}")
       values.zipWithIndex.foreach{t=>
         ps.setObject(t._2+1, t._1)
       }
@@ -103,15 +105,14 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
-  override def selectWhere(table: Symbol, filters: (Symbol, Any)*): QueryData = ???
-
   override def delete(table: Symbol, id: Any): Int = ???
 
-  override def select(table: Symbol, offset: Int=0, count: Int=0): QueryData = {
+  override def select(table: Symbol, where:Predicate=EmptyPredicate, offset: Int=0, count: Int=0
+                      , orderBy:Seq[(Symbol, ColumnOrder)]=Nil): QueryData = {
     ds.doWith{conn=>
       val ps = (offset>0).option().flatMap{_=>
-        dialect.map(_.selectStatement(conn, table.name, offset, count))
-      }.getOrElse(conn.prepareStatement(s"SELECT * FROM ${table.name}"))
+        dialect.map(_.selectStatement(conn, table.name, offset, count, orderBy))
+      }.getOrElse(conn.prepareStatement(s"SELECT * FROM ${table.name} " + (orderBy.isEmpty? ""|s"ORDER BY ${orderBy.mkString(",")}")))
 
       if(count>0){
         ps.setMaxRows(count)
@@ -122,7 +123,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private def toQueryData(rs: ResultSet): QueryData = {
     val rsMeta = rs.getMetaData
-    val columns = for (c <- 1 to rsMeta.getColumnCount) yield Column(Symbol(rsMeta.getColumnName(c)), rsMeta.getColumnType(c))
+    val columns = for (c <- 1 to rsMeta.getColumnCount) yield Symbol(rsMeta.getColumnName(c))
     val rows = collect(rs, { rs =>
       Array.range(1, columns.size + 1).map(rs.getObject(_).asInstanceOf[Any])
     })
