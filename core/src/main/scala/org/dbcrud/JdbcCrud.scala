@@ -5,6 +5,7 @@ import java.util.logging.{Level, Logger}
 
 import org.dbcrud.dialects.DbmsDialect
 
+import scala.annotation.tailrec
 import scala.util.{Failure, Try}
 import scalaz.Scalaz._
 
@@ -64,6 +65,12 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }.takeWhile(_.isDefined).flatten.toList
   }
 
+  @tailrec
+  private def skip(rs:ResultSet, count:Int):ResultSet = {
+    if(!rs.next() || count<=0) rs
+    else skip(rs, count-1)
+  }
+
   def createTable(name:Symbol, columns:(Symbol,Int)*){
     ds.doWith{conn=>
       val columnsLines = columns.map{case (colName, colType) => s"${colName.name} ${typeMappings(colType)}"}
@@ -120,14 +127,22 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   override def select(table: Symbol, where:Predicate=EmptyPredicate, offset: Int=0, count: Int=0
                       , orderBy:Seq[ColumnOrder]=Nil): QueryData = {
     ds.doWith{conn=>
-      val ps = (offset>0).option().flatMap{_=>
-        dialect.map(_.selectStatement(conn, table.name, offset, count, orderBy))
-      }.getOrElse(conn.prepareStatement(s"SELECT * FROM ${table.name} " + (orderBy.isEmpty? ""|s"ORDER BY ${orderBy.mkString(",")}")))
-
-      if(count>0){
-        ps.setMaxRows(count)
+      val rs = (offset>0).option().flatMap{_=>
+        dialect.map {d=>
+          val ps = d.selectStatement(conn, table.name, where, offset, count, orderBy)
+          ps.executeQuery()
+        }
+      }.getOrElse {
+        val ps = conn.prepareStatement(s"SELECT * FROM ${table.name} ${where.whereSql} " + (orderBy.isEmpty ? "" | s"ORDER BY ${orderBy.mkString(",")}"))
+        where.constants.zipWithIndex.foreach{t=>
+          ps.setObject(t._2+1, t._1)
+        }
+        if(count>0){
+          ps.setMaxRows(offset + count)
+        }
+        skip(ps.executeQuery(), offset)
       }
-      toQueryData(ps.executeQuery())
+      toQueryData(rs)
     }
   }
 
