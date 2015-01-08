@@ -11,7 +11,7 @@ import scalaz.Scalaz._
 
 trait DbmsDialect{
 
-  def selectStatement(con:Connection, table:String, offset:Int, limit:Int, orderBy:Seq[(Symbol, ColumnOrder)]):PreparedStatement
+  def selectStatement(con:Connection, table:String, offset:Int, limit:Int, orderBy:Seq[ColumnOrder]):PreparedStatement
 
 }
 

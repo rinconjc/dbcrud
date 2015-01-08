@@ -18,9 +18,9 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   private lazy val tables = ds.doWith {conn=>
     val rs = conn.getMetaData.getTables(null, schema, "%", Array("TABLE"))
     collect(rs, {rs=>
-      val tableName = rs.getString("TABLE_NAME")
-      DbTable(Symbol(tableName), columns(tableName), primaryKeys(tableName))
-    })
+      val tableName = Symbol(rs.getString("TABLE_NAME"))
+      tableName -> DbTable(tableName, columns(tableName.name), primaryKeys(tableName.name))
+    }).toMap
   }
 
   private lazy val typeMappings = ds.doWith{conn=>
@@ -73,7 +73,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
-  override def tableNames: Iterable[Symbol] = tables.map(_.name)
+  override def tableNames: Iterable[Symbol] = tables.keys
 
   override def insert(table: Symbol, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip
@@ -105,10 +105,20 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
-  override def delete(table: Symbol, id: Any): Int = ???
+  override def delete(table: Symbol, id: Any): Int = ds.doWith{conn=>
+    val predicate = id match {
+      case seq:Seq[(Symbol, Any)] => new SimpleConditions(seq)
+      case other => tables(table).primaryKey.ensuring(_.size ==1).map(k=>new SimpleConditions(Seq(k->other))).head
+    }
+    val ps = conn.prepareStatement(s"DELETE FROM ${table.name} ${predicate.whereSql}")
+    predicate.constants.zipWithIndex.foreach{t=>
+      ps.setObject(t._2+1, t._1)
+    }
+    ps.executeUpdate()
+  }
 
   override def select(table: Symbol, where:Predicate=EmptyPredicate, offset: Int=0, count: Int=0
-                      , orderBy:Seq[(Symbol, ColumnOrder)]=Nil): QueryData = {
+                      , orderBy:Seq[ColumnOrder]=Nil): QueryData = {
     ds.doWith{conn=>
       val ps = (offset>0).option().flatMap{_=>
         dialect.map(_.selectStatement(conn, table.name, offset, count, orderBy))

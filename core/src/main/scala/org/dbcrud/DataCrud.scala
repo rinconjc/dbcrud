@@ -46,7 +46,7 @@ trait DataCrud {
 
   def delete(table: Symbol, id: Any): Int
 
-  def select(table: Symbol, where: Predicate, offset: Int, count: Int, orderBy: Seq[(Symbol, ColumnOrder)]): QueryData
+  def select(table: Symbol, where: Predicate, offset: Int, count: Int, orderBy: Seq[ColumnOrder]): QueryData
 }
 
 object ColumnOps {
