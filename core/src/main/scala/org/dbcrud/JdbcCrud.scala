@@ -146,6 +146,9 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
+
+  override def selectById(table: Symbol, id: Any): Row = ???
+
   private def toQueryData(rs: ResultSet): QueryData = {
     val rsMeta = rs.getMetaData
     val columns = for (c <- 1 to rsMeta.getColumnCount) yield Symbol(rsMeta.getColumnName(c))
