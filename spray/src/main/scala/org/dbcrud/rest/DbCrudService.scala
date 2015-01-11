@@ -1,13 +1,14 @@
 package org.dbcrud.rest
 
 import spray.routing.HttpServiceActor
+import org.dbcrud._
 
 /**
  * Created by julio on 9/01/15.
  */
 class DbCrudService(dbCrud:DataCrud) extends HttpServiceActor {
 
-  def isValidEntity(entity:String):Boolean = ???
+  def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
 
   def receive = runRoute {
     path("rest" / Segment) {entity =>
