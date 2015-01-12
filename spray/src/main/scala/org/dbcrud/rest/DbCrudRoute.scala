@@ -1,19 +1,19 @@
 package org.dbcrud.rest
 
-import spray.routing.HttpServiceActor
 import org.dbcrud._
+import spray.routing
 
 /**
  * Created by julio on 9/01/15.
  */
-class DbCrudService(dbCrud:DataCrud) extends HttpServiceActor {
+class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directives {
 
   def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
 
-  def receive = runRoute {
-    path("rest" / Segment) {entity =>
+  def routes: routing.Route = {
+    path(config.restPrefix / Segment) { entity =>
       //check that entity is valid!
-      validate(isValidEntity(entity), s"invalid entity $entity"){
+      validate(isValidEntity(entity), s"invalid entity $entity") {
         pathEnd {
           post {
             complete {
