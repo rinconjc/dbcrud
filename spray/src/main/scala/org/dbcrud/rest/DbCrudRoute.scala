@@ -10,7 +10,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directiv
 
   def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
 
-  def routes: routing.Route = {
+  def routes = {
     path(config.restPrefix / Segment) { entity =>
       //check that entity is valid!
       validate(isValidEntity(entity), s"invalid entity $entity") {
