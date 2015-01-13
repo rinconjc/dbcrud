@@ -4,13 +4,13 @@ import org.dbcrud.DataCrud
 import org.mockito.Mockito._
 import org.specs2.mutable.Specification
 import spray.httpx.SprayJsonSupport
+import spray.json.DefaultJsonProtocol
 import spray.routing.HttpService
 import spray.testkit.Specs2RouteTest
-
 /**
  * Created by julio on 12/01/15.
  */
-class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpService with SprayJsonSupport {
+class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpService with SprayJsonSupport with DefaultJsonProtocol {
   override def actorRefFactory = system
 
   private val dataCrud = mock(classOf[DataCrud])
@@ -22,9 +22,8 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
 
   "return the list of entities" in {
     Get(restPrefix + "/entities") ~> dbCrudRoute ~> check {
-      responseAs[Seq[String]] === Seq('table1, 'table2)
+      responseAs[Seq[Symbol]] === Seq('table1, 'table2)
     }
-
   }
 
 }

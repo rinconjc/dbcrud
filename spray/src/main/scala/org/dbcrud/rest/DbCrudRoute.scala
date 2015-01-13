@@ -1,17 +1,22 @@
 package org.dbcrud.rest
 
 import org.dbcrud._
-import spray.routing
+import spray.httpx.SprayJsonSupport
+import spray.json.DefaultJsonProtocol
 
 /**
  * Created by julio on 9/01/15.
  */
-class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directives {
+class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directives with SprayJsonSupport with DefaultJsonProtocol {
 
   def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
 
-  def routes = {
-    path(config.restPrefix / Segment) { entity =>
+  def routes = pathPrefix(config.restPrefix) {
+    path("entities"){
+      get{
+        complete(dbCrud.tableNames)
+      }
+    } ~ path(Segment) { entity =>
       //check that entity is valid!
       validate(isValidEntity(entity), s"invalid entity $entity") {
         pathEnd {
