@@ -58,7 +58,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directiv
               parameters('offset.?[Int](0), 'limit.?[Int](0)){(offset, limit)=>
                 complete {
                   val data = dbCrud.select(Symbol(entity),  offset = offset, count = limit)
-                  QueryResult(data.size, data.size, offset, data.toSeq)
+                  QueryResult(data.size, offset, data.toSeq)
                 }
               }
             }

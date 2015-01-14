@@ -1,9 +1,9 @@
 package org.dbcrud.rest
 
 import org.dbcrud.rest.DbCrudRoute.RowSerializer
-import org.dbcrud.{DataCrud, QueryData}
+import org.dbcrud.{ColumnOps, DataCrud, QueryData}
 import org.json4s.DefaultFormats
-import org.mockito.Mockito._
+import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import spray.http.StatusCodes._
 import spray.httpx.Json4sSupport
@@ -12,16 +12,16 @@ import spray.testkit.Specs2RouteTest
 /**
  * Created by julio on 12/01/15.
  */
-class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpService with Json4sSupport {
+class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpService with Json4sSupport with Mockito {
   def actorRefFactory = system
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
-  private val dataCrud = mock(classOf[DataCrud])
+  private val dataCrud = mock[DataCrud]
   private val config = new Config
   private val dbCrudRoute = new DbCrudRoute(dataCrud, config).routes
   val restPrefix = "/" + config.restPrefix
 
-  when(dataCrud.tableNames).thenReturn(Seq('table1, 'table2))
+  dataCrud.tableNames returns Seq('table1, 'table2)
 
   "return the list of resources" in {
     Get(restPrefix + "/resources") ~> dbCrudRoute ~> check {
@@ -36,28 +36,42 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   }
 
   "retrieve records in a table" in{
-    when(dataCrud.select('table1)).thenReturn(new QueryData(Seq('field1, 'field2), Seq.range(0,10).map(i=>Array(s"Value$i", i))))
+    dataCrud.select('table1, offset=0, count=0) returns new QueryData(Seq('field1, 'field2), Seq.range(0,10).map(i=>Array(s"Value$i", i)))
 
     Get(restPrefix + "/table1") ~> dbCrudRoute ~> check{
+      status === OK
       val data = responseAs[QueryResult]
       data.count === 10
       data.offset === 0
-      data.total === 10
       data.rows(0)[String]('field1) === "Value0"
     }
   }
 
   "retrieve rows with pagination" in{
 
-    when(dataCrud.select('table1, offset=1, count=3)).thenReturn(new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i))))
+    dataCrud.select('table1, offset=1, count=3) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
 
     Get(restPrefix + "/table1?offset=1&limit=3") ~> dbCrudRoute ~> check{
+      status === OK
       val data = responseAs[QueryResult]
       data.count === 3
       data.offset === 1
-      data.total === 10
       data.rows(0)[String]('field1) === "Value0"
     }
+  }
+
+  "retrieve rows with filter conditions" in {
+    import ColumnOps._
+    dataCrud.select('table1, offset=0, count=0, where=Seq('field2->2)) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
+
+    Get(restPrefix + "/table1?field2=2&field3=10") ~> dbCrudRoute ~> check{
+      status === OK
+      val data = responseAs[QueryResult]
+      data.count === 3
+      data.offset === 1
+      data.rows(0)[String]('field1) === "Value0"
+    }
+
   }
 
 
