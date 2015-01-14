@@ -9,7 +9,7 @@ object DbCrudBuild extends Build {
     scalaVersion:="2.11.2"
   )
 
-  scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
+  scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8", "log-implicits")
 
   lazy val root = Project(id = "dbcrud", base = file(".")) aggregate(core, spray)
 
