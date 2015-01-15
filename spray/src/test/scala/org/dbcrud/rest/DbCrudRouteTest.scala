@@ -64,13 +64,13 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
 
   "retrieve rows with filter conditions" in {
     import ColumnOps._
-    dataCrud.select('table1, offset=0, count=0, where=Seq('field2->2)) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
+    dataCrud.select('table1, offset=0, count=0, where=Seq('field2->2, 'field3->"abracadabra")) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
 
-    Get(restPrefix + "/table1?field2=2&field3=10") ~> dbCrudRoute ~> check{
+    Get(restPrefix + "/table1?field2=2&field3=abracadabra") ~> dbCrudRoute ~> check{
       status === OK
       val data = responseAs[QueryResult]
       data.count === 3
-      data.offset === 1
+      data.offset === 0
       data.rows(0)[String]('field1) === "Value0"
     }
 

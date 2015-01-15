@@ -39,6 +39,10 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directiv
 
   def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
 
+  private def parsePredicate(entity:String, params:Map[String,String]):Predicate={
+    dbCrud.
+  }
+
   def routes = pathPrefix(config.restPrefix) {
     path("resources"){
       get{
@@ -57,6 +61,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directiv
             get {
               parameters('offset.?[Int](0), 'limit.?[Int](0)){(offset, limit)=>
                 parameterMap{params=>
+                  val predicate = parsePredicate(params, entity)
                   complete {
                     val data = dbCrud.select(Symbol(entity),  offset = offset, count = limit)
                     QueryResult(data.size, offset, data.toSeq)
