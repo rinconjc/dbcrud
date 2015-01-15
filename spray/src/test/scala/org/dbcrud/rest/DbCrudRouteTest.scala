@@ -23,6 +23,8 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
 
   dataCrud.tableNames returns Seq('table1, 'table2)
 
+  sequential
+
   "return the list of resources" in {
     Get(restPrefix + "/resources") ~> dbCrudRoute ~> check {
       responseAs[Seq[Symbol]] === Seq('table1, 'table2)
