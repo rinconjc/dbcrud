@@ -17,7 +17,7 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
   private val dataCrud = mock[DataCrud]
-  private val config = new Config
+  private val config = new Settings
   private val dbCrudRoute = new DbCrudRoute(dataCrud, config).routes
   val restPrefix = "/" + config.restPrefix
 

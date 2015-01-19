@@ -6,7 +6,8 @@ object DbCrudBuild extends Build {
   lazy val commonSettings = Seq(
     organization:= "org.dbcrud",
     version:="0.1-SNAPSHOT",
-    scalaVersion:="2.11.2"
+    scalaVersion:="2.11.2",
+    libraryDependencies += "com.typesafe" %% "config" % "1.2.1"
   )
 
   scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8", "log-implicits")

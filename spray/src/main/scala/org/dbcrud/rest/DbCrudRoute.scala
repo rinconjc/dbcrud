@@ -36,7 +36,7 @@ import org.dbcrud.rest.DbCrudRoute._
 /**
  * Created by julio on 9/01/15.
  */
-class DbCrudRoute(dbCrud:DataCrud, config:Config) extends spray.routing.Directives with Json4sSupport {
+class DbCrudRoute(dbCrud:DataCrud, config:Settings) extends spray.routing.Directives with Json4sSupport {
   private val logger = Logger.getLogger(classOf[DbCrudRoute].getName)
 
   implicit def json4sFormats = DefaultFormats + new RowSerializer
