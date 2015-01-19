@@ -52,7 +52,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private def columns(table:String) = ds.doWith{conn=>
     collect(conn.getMetaData.getColumns(null,null,table,"%"), {rs=>
-      DbColumn(Symbol(rs.getString("COLUMN_NAME")), rs.getInt("DATA_TYPE"), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
+      DbColumn(Symbol(rs.getString("COLUMN_NAME")), SqlType(rs.getInt("DATA_TYPE")), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
         rs.getInt("NULLABLE")==DatabaseMetaData.attributeNullable, rs.getString("IS_AUTOINCREMENT")=="YES", rs.getString("IS_GENERATEDCOLUMN")=="YES")
     })
   }
@@ -81,6 +81,9 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   }
 
   override def tableNames: Iterable[Symbol] = tables.keys
+
+
+  override def tableDef(table: Symbol) = tables(table)
 
   override def insert(table: Symbol, values: (Symbol, Any)*): Int = {
     val (cols, vals) = values.unzip

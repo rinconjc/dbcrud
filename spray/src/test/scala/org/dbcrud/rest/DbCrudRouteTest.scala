@@ -1,7 +1,7 @@
 package org.dbcrud.rest
 
 import org.dbcrud.rest.DbCrudRoute.RowSerializer
-import org.dbcrud.{ColumnOps, DataCrud, QueryData}
+import org.dbcrud._
 import org.json4s.DefaultFormats
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
@@ -22,6 +22,7 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   val restPrefix = "/" + config.restPrefix
 
   dataCrud.tableNames returns Seq('table1, 'table2)
+  dataCrud.tableDef('table1) returns DbTable('table1, Seq(DbColumn[String]('field1, SqlVarchar, 40), DbColumn[Long]('field2, SqlInt, 4)), Seq('filed1))
 
   sequential
 
@@ -38,7 +39,7 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   }
 
   "retrieve records in a table" in{
-    dataCrud.select('table1, offset=0, count=0) returns new QueryData(Seq('field1, 'field2), Seq.range(0,10).map(i=>Array(s"Value$i", i)))
+    dataCrud.select('table1, offset=0, count=0, where=EmptyPredicate) returns new QueryData(Seq('field1, 'field2), Seq.range(0,10).map(i=>Array(s"Value$i", i)))
 
     Get(restPrefix + "/table1") ~> dbCrudRoute ~> check{
       status === OK
@@ -51,7 +52,7 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
 
   "retrieve rows with pagination" in{
 
-    dataCrud.select('table1, offset=1, count=3) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
+    dataCrud.select('table1, offset=1, count=3, where=EmptyPredicate) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
 
     Get(restPrefix + "/table1?offset=1&limit=3") ~> dbCrudRoute ~> check{
       status === OK
@@ -64,9 +65,9 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
 
   "retrieve rows with filter conditions" in {
     import ColumnOps._
-    dataCrud.select('table1, offset=0, count=0, where=Seq('field2->2, 'field3->"abracadabra")) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
+    dataCrud.select('table1, offset=0, count=0, where=Seq('field1->"abracadabra", 'field2->2)) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
 
-    Get(restPrefix + "/table1?field2=2&field3=abracadabra") ~> dbCrudRoute ~> check{
+    Get(restPrefix + "/table1?field2=2&field1=abracadabra") ~> dbCrudRoute ~> check{
       status === OK
       val data = responseAs[QueryResult]
       data.count === 3
