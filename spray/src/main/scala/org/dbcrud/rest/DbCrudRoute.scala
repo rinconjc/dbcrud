@@ -2,6 +2,7 @@ package org.dbcrud.rest
 
 import java.util.logging.Logger
 
+import com.typesafe.config.{ConfigFactory, Config}
 import org.dbcrud._
 import org.json4s.JsonAST.{JField, JObject}
 import org.json4s.{CustomSerializer, DefaultFormats, Extraction}
@@ -36,8 +37,10 @@ import org.dbcrud.rest.DbCrudRoute._
 /**
  * Created by julio on 9/01/15.
  */
-class DbCrudRoute(dbCrud:DataCrud, config:Settings) extends spray.routing.Directives with Json4sSupport {
+class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends spray.routing.Directives with Json4sSupport {
   private val logger = Logger.getLogger(classOf[DbCrudRoute].getName)
+  private val settings = new Settings(config)
+  private val tableAliases = settings.restAliases
 
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
@@ -58,10 +61,10 @@ class DbCrudRoute(dbCrud:DataCrud, config:Settings) extends spray.routing.Direct
     else Right(EmptyPredicate)
   }
 
-  def routes = pathPrefix(config.restPrefix) {
+  def routes = pathPrefix(settings.restPrefix) {
     path("resources"){
       get{
-        complete(dbCrud.tableNames)
+        complete(dbCrud.tableNames.map(tableAliases.get()))
       }
     } ~ path(Segment) { entity =>
       if(!isValidEntity(entity))
