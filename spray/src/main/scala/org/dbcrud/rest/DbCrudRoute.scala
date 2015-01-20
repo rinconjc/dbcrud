@@ -40,7 +40,8 @@ import org.dbcrud.rest.DbCrudRoute._
 class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends spray.routing.Directives with Json4sSupport {
   private val logger = Logger.getLogger(classOf[DbCrudRoute].getName)
   private val settings = new Settings(config)
-  private val tableAliases = settings.restAliases
+  private val aliasToTable = settings.restAliases
+  private val tableToAlias = aliasToTable.map(_.swap)
 
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
@@ -64,11 +65,12 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
   def routes = pathPrefix(settings.restPrefix) {
     path("resources"){
       get{
-        complete(dbCrud.tableNames.map(tableAliases.get()))
+        complete(dbCrud.tableNames.map(t=>tableToAlias.getOrElse(t.name, t.name)))
       }
-    } ~ path(Segment) { entity =>
-      if(!isValidEntity(entity))
-        complete(StatusCodes.NotFound, s"$entity resource not found")
+    } ~ path(Segment) {entity =>
+      val tableName = aliasToTable.getOrElse(entity, entity)
+      if(!isValidEntity(tableName))
+        complete(StatusCodes.NotFound, s"resource '$entity' not found")
       else{
         pathEnd {
           post {
@@ -80,13 +82,13 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
               parameters('offset.?[Int](0), 'limit.?[Int](0)){(offset, limit)=>
                 parameterMap{params=>
                   logger.info(s"filter params: $params")
-                  parsePredicate(entity, params) match{
+                  parsePredicate(tableName, params) match{
                     case Left(failures)=>
                       complete(StatusCodes.BadRequest, s"failed coercing parameters to sql types: ${failures.map(_.exception.getMessage).mkString(",")}")
                     case Right(predicate) =>
                       logger.info(s"predicate: $predicate")
                       complete {
-                        val data = dbCrud.select(Symbol(entity),  offset = offset, count = limit, where = predicate)
+                        val data = dbCrud.select(Symbol(tableName),  offset = offset, count = limit, where = predicate)
                         QueryResult(data.size, offset, data.toSeq)
                       }
                   }

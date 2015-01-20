@@ -11,7 +11,7 @@ import spray.httpx.Json4sSupport
 import spray.routing.HttpService
 import spray.testkit.Specs2RouteTest
 import collection.JavaConversions._
-
+import ColumnOps._
 /**
  * Created by julio on 12/01/15.
  */
@@ -20,9 +20,9 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
   private val dataCrud = mock[DataCrud]
-  private val config = new Settings(ConfigFactory.load().withValue("dbcrud.rest.aliases", ConfigValueFactory.fromMap(Map("tasks"->"table1"))))
-  private val dbCrudRoute = new DbCrudRoute(dataCrud).routes
-  val restPrefix = "/" + config.restPrefix
+  private val config = ConfigFactory.load().withValue("dbcrud.rest.aliases", ConfigValueFactory.fromMap(Map("tasks"->"table1")))
+  private val dbCrudRoute = new DbCrudRoute(dataCrud, config).routes
+  val restPrefix = "/" + config.getString("dbcrud.rest.prefix")
 
   dataCrud.tableNames returns Seq('table1, 'table2)
   dataCrud.tableDef('table1) returns DbTable('table1, Seq(DbColumn[String]('field1, SqlVarchar, 40), DbColumn[Long]('field2, SqlInt, 4)), Seq('filed1))
@@ -67,7 +67,6 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   }
 
   "retrieve rows with filter conditions" in {
-    import ColumnOps._
     dataCrud.select('table1, offset=0, count=0, where=Seq('field1->"abracadabra", 'field2->2)) returns new QueryData(Seq('field1, 'field2), Seq.range(0,3).map(i=>Array(s"Value$i", i)))
 
     Get(restPrefix + "/tasks?field2=2&field1=abracadabra") ~> dbCrudRoute ~> check{
@@ -77,7 +76,16 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
       data.offset === 0
       data.rows(0)[String]('field1) === "Value0"
     }
+  }
 
+  "reject invalid filter conditions" in {
+    Get(restPrefix + "/tasks?field2=abc&field1=abracadabra") ~> dbCrudRoute ~> check{
+      status === BadRequest
+    }
+  }
+
+  "insert a record" in {
+    Post(restPrefix + "/tasks")
   }
 
 
