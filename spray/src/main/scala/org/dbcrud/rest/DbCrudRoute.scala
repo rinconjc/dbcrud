@@ -99,8 +99,9 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
     }
   }
 
-  private def createResource(tableName:String)=complete{
-    "post resource"
+  private def createResource(tableName:String)=entity(as[Map[Symbol,Any]]){values =>
+    val id = dbCrud.insert(Symbol(tableName), values.toSeq :_*)
+    getResource(tableName, id)
   }
 
   private def putResource(tableName:String, id:Any)= complete{
@@ -108,7 +109,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
   }
 
   private def getResource(tableName:String, id:Any)= complete{
-    "get resource"
+    dbCrud.selectById(Symbol(tableName), id)
   }
 
   private def deleteResource(tableName:String, id:Any)= complete{

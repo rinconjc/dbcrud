@@ -84,11 +84,13 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
     }
   }
 
-/*
   "insert a record" in {
-    Post(restPrefix + "/tasks")
+    dataCrud.insert('table1, 'field1->100, 'field2->"abracadabra") returns 10
+    Post(restPrefix + "/tasks", Map('field1->100, 'field2->"abracadabra"))~> dbCrudRoute ~> check{
+      status === OK
+      responseAs[Map[String,Any]]("id") === 10
+    }
   }
-*/
 
 
 }
