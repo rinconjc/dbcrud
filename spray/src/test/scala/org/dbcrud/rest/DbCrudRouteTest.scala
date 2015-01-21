@@ -84,9 +84,11 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
     }
   }
 
+/*
   "insert a record" in {
     Post(restPrefix + "/tasks")
   }
+*/
 
 
 }

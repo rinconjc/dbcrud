@@ -68,51 +68,68 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
         complete(dbCrud.tableNames.map(t=>tableToAlias.getOrElse(t.name, t.name)))
       }
     } ~ path(Segment) {entity =>
-      val tableName = aliasToTable.getOrElse(entity, entity)
-      if(!isValidEntity(tableName))
-        complete(StatusCodes.NotFound, s"resource '$entity' not found")
-      else{
-        pathEnd {
-          post {
-            complete {
-              "post entity"
-            }
+      handleResourceRequest(entity)
+    }
+  }
+
+  private def handleResourceRequest(entity: String) = {
+    val tableName = aliasToTable.getOrElse(entity, entity)
+    if (!isValidEntity(tableName))
+      complete(StatusCodes.NotFound, s"resource '$entity' not found")
+    else {
+      pathEnd {
+        post {
+          createResource(tableName)
+        } ~
+          get {
+            queryResources(tableName)
+          }
+      } ~
+        path(Segment) { id =>
+          put {
+            putResource(tableName, id)
           } ~
             get {
-              parameters('offset.?[Int](0), 'limit.?[Int](0)){(offset, limit)=>
-                parameterMap{params=>
-                  logger.info(s"filter params: $params")
-                  parsePredicate(tableName, params) match{
-                    case Left(failures)=>
-                      complete(StatusCodes.BadRequest, s"failed coercing parameters to sql types: ${failures.map(_.exception.getMessage).mkString(",")}")
-                    case Right(predicate) =>
-                      logger.info(s"predicate: $predicate")
-                      complete {
-                        val data = dbCrud.select(Symbol(tableName),  offset = offset, count = limit, where = predicate)
-                        QueryResult(data.size, offset, data.toSeq)
-                      }
-                  }
-                }
-              }
-            }
-        } ~
-          path(Segment) { id =>
-            put {
-              complete {
-                "update " + id
-              }
+              getResource(tableName, id)
             } ~
-              get {
-                complete {
-                  "get by id" + id
-                }
-              } ~
-              delete {
-                complete {
-                  "delete by id"
-                }
-              }
-          }
+            delete {
+              deleteResource(tableName, id)
+            }
+        }
+    }
+  }
+
+  private def createResource(tableName:String)=complete{
+    "post resource"
+  }
+
+  private def putResource(tableName:String, id:Any)= complete{
+    "put resource"
+  }
+
+  private def getResource(tableName:String, id:Any)= complete{
+    "get resource"
+  }
+
+  private def deleteResource(tableName:String, id:Any)= complete{
+    "put resource"
+  }
+
+
+  private def queryResources(tableName: String)= {
+    parameters('offset.?[Int](0), 'limit.?[Int](0)) { (offset, limit) =>
+      parameterMap { params =>
+        logger.info(s"filter params: $params")
+        parsePredicate(tableName, params) match {
+          case Left(failures) =>
+            complete(StatusCodes.BadRequest, s"failed coercing parameters to sql types: ${failures.map(_.exception.getMessage).mkString(",")}")
+          case Right(predicate) =>
+            logger.info(s"predicate: $predicate")
+            complete {
+              val data = dbCrud.select(Symbol(tableName), offset = offset, count = limit, where = predicate)
+              QueryResult(data.size, offset, data.toSeq)
+            }
+        }
       }
     }
   }
