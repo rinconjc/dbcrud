@@ -150,7 +150,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
   }
 
 
-  override def selectById(table: Symbol, id: Any): Row = ???
+  override def selectById(table: Symbol, id: Any): Map[Symbol, Any] = ???
 
   private def toQueryData(rs: ResultSet): QueryData = {
     val rsMeta = rs.getMetaData

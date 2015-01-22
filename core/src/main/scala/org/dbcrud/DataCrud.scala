@@ -57,7 +57,7 @@ trait DataCrud {
 
   def select(table: Symbol, where: Predicate=EmptyPredicate, offset: Int=0, count: Int=10, orderBy: Seq[ColumnOrder]=Nil): QueryData
 
-  def selectById(table: Symbol, id:Any):Row
+  def selectById(table: Symbol, id:Any):Map[Symbol, Any]
 }
 
 object ColumnOps {
