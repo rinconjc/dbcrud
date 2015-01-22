@@ -45,10 +45,10 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
 
   implicit def json4sFormats = DefaultFormats + new RowSerializer
 
-  def isValidEntity(entity:String):Boolean = dbCrud.tableNames.exists(_.name == entity)
+  def isValidEntity(entity:Symbol):Boolean = dbCrud.tableNames.exists(_ == entity)
 
-  private def parsePredicate(entity:String, params:Map[String,String]):Either[Seq[Failure[_]],Predicate]={
-    val tableDef = dbCrud.tableDef(Symbol(entity))
+  private def parsePredicate(entity:Symbol, params:Map[String,String]):Either[Seq[Failure[_]],Predicate]={
+    val tableDef = dbCrud.tableDef(entity)
     val (failures, successes) = params.foldLeft((Nil:List[Failure[_]],Nil:List[(Symbol,Any)])){case (acc, (field, value)) =>
       tableDef.coerce[Any](Symbol(field), value) match{
         case Some(Success(coerced)) => acc._1 -> ((Symbol(field)->coerced)::acc._2)
@@ -73,7 +73,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
   }
 
   private def handleResourceRequest(entity: String) = {
-    val tableName = aliasToTable.getOrElse(entity, entity)
+    val tableName = Symbol(aliasToTable.getOrElse(entity, entity))
     if (!isValidEntity(tableName))
       complete(StatusCodes.NotFound, s"resource '$entity' not found")
     else {
@@ -99,25 +99,25 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
     }
   }
 
-  private def createResource(tableName:String)=entity(as[Map[Symbol,Any]]){values =>
-    val id = dbCrud.insert(Symbol(tableName), values.toSeq :_*)
+  private def createResource(tableName:Symbol)=entity(as[Map[Symbol,Any]]){values =>
+    val id = dbCrud.insert(tableName, values.toSeq :_*)
     getResource(tableName, id)
   }
 
-  private def putResource(tableName:String, id:Any)= complete{
+  private def putResource(tableName:Symbol, id:Any)= complete{
     "put resource"
   }
 
-  private def getResource(tableName:String, id:Any)= complete{
-    dbCrud.selectById(Symbol(tableName), id)
+  private def getResource(tableName:Symbol, id:Any)= complete{
+    dbCrud.selectById(tableName, id)
   }
 
-  private def deleteResource(tableName:String, id:Any)= complete{
+  private def deleteResource(tableName:Symbol, id:Any)= complete{
     "put resource"
   }
 
 
-  private def queryResources(tableName: String)= {
+  private def queryResources(tableName: Symbol)= {
     parameters('offset.?[Int](0), 'limit.?[Int](0)) { (offset, limit) =>
       parameterMap { params =>
         logger.info(s"filter params: $params")
@@ -127,7 +127,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
           case Right(predicate) =>
             logger.info(s"predicate: $predicate")
             complete {
-              val data = dbCrud.select(Symbol(tableName), offset = offset, count = limit, where = predicate)
+              val data = dbCrud.select(tableName, offset = offset, count = limit, where = predicate)
               QueryResult(data.size, offset, data.toSeq)
             }
         }
