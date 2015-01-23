@@ -97,6 +97,14 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }
   }
 
+  override def update(table: Symbol, id: Any, values: (Symbol, Any)*): Unit = ds.doWith{conn=>
+    val predicate = id match {
+      case seq:Seq[(Symbol, Any)] => new SimpleConditions(seq)
+      case other => tables(table).primaryKey.ensuring(_.size ==1).map(k=>new SimpleConditions(Seq(k->other))).head
+    }
+    updateWhere(table, predicate, values:_*)
+  }
+
   override def updateAll(table: Symbol, values: (Symbol, Any)*): Int = {
     updateWhere(table, EmptyPredicate, values: _*)
   }

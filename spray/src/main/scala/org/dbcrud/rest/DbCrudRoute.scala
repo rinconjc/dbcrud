@@ -67,7 +67,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
       get{
         complete(dbCrud.tableNames.map(t=>tableToAlias.getOrElse(t.name, t.name)))
       }
-    } ~ path(Segment) {entity =>
+    } ~ pathPrefix(Segment) {entity =>
       handleResourceRequest(entity)
     }
   }
@@ -99,17 +99,14 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
     }
   }
 
-  private def createResource(tableName:Symbol)=entity(as[Map[String,Any]]){values =>
-    println(values)
-    complete("ok")
-/*
+  private def createResource(tableName:Symbol)=entity(as[Map[Symbol,Any]]){values =>
     val id = dbCrud.insert(tableName, values.toSeq :_*)
     getResource(tableName, id)
-*/
   }
 
-  private def putResource(tableName:Symbol, id:Any)= complete{
-    "put resource"
+  private def putResource(tableName:Symbol, id:Any)= entity(as[Map[Symbol, Any]]){values=>
+    dbCrud.update()
+    getResource(tableName, id)
   }
 
   private def getResource(tableName:Symbol, id:Any)= complete{

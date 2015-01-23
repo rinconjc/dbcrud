@@ -88,9 +88,18 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
     dataCrud.insert('table1, 'field1->100, 'field2->"abracadabra") returns 10
     dataCrud.selectById('table1, 10) returns Map('id->10, 'field1->100, 'field2->"abracadabra")
 
-    Post(restPrefix + "/tasks", Map('field1->100, 'field2->"abracadabra")) ~> logRequest(println(_)) ~> dbCrudRoute ~> check{
+    Post(restPrefix + "/tasks", Map('field1->100, 'field2->"abracadabra")) ~> dbCrudRoute ~> check{
       status === OK
       responseAs[Map[String,Any]].get("id") === Some(10)
+    }
+  }
+
+  "update a record" in {
+    dataCrud.selectById('table1, 10) returns Map('id->10, 'field1->200, 'field2->"abracadabra")
+
+    Put(restPrefix + "/tasks/10", Map('field1->200)) ~> dbCrudRoute ~> check{
+      status === OK
+      responseAs[Map[Symbol, Any]] === Map('id->10, 'field1->200, 'field3->"abracadabra")
     }
   }
 

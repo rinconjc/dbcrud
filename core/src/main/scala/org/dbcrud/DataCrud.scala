@@ -49,6 +49,8 @@ trait DataCrud {
 
   def insert(table: Symbol, values: (Symbol, Any)*): Int
 
+  def update(table: Symbol, id:Any, values: (Symbol, Any)*)
+
   def updateAll(table: Symbol, values: (Symbol, Any)*): Int
 
   def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Int
