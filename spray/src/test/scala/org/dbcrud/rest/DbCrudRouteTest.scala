@@ -25,7 +25,7 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   val restPrefix = "/" + config.getString("dbcrud.rest.prefix")
 
   dataCrud.tableNames returns Seq('table1, 'table2)
-  dataCrud.tableDef('table1) returns DbTable('table1, Seq(DbColumn[String]('field1, SqlVarchar, 40), DbColumn[Long]('field2, SqlInt, 4)), Seq('filed1))
+  dataCrud.tableDef('table1) returns DbTable('table1, Seq(DbColumn[Long]('id, SqlInt), DbColumn[String]('field1, SqlVarchar, 40), DbColumn[Long]('field2, SqlInt, 4)), Seq('id))
 
   sequential
 
@@ -95,11 +95,11 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
   }
 
   "update a record" in {
-    dataCrud.selectById('table1, 10) returns Map('id->10, 'field1->200, 'field2->"abracadabra")
+    dataCrud.selectById('table1, 10L) returns Map('id->10, 'field1->200, 'field2->"abracadabra")
 
     Put(restPrefix + "/tasks/10", Map('field1->200)) ~> dbCrudRoute ~> check{
       status === OK
-      responseAs[Map[Symbol, Any]] === Map('id->10, 'field1->200, 'field3->"abracadabra")
+      responseAs[Map[Symbol, Any]] === Map('id->10, 'field1->200, 'field2->"abracadabra")
     }
   }
 

@@ -1,6 +1,6 @@
 package org.dbcrud.rest
 
-import java.util.logging.Logger
+import java.util.logging.{Level, Logger}
 
 import com.typesafe.config.{ConfigFactory, Config}
 import org.dbcrud._
@@ -85,19 +85,34 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
             queryResources(tableName)
           }
       } ~
-        path(Segment) { id =>
-          put {
-            putResource(tableName, id)
-          } ~
-            get {
-              getResource(tableName, id)
-            } ~
-            delete {
-              deleteResource(tableName, id)
-            }
+        pathPrefix(Segment) { id =>
+          handleResourceAction(tableName, id)
         }
     }
   }
+
+  private def handleResourceAction(tableName:Symbol, id:String) = pathEnd{
+    val tableDef = dbCrud.tableDef(tableName)
+    tableDef.coerce[Any](tableDef.primaryKey.head, id) match {
+      case Some(Success(resId)) =>
+        put {
+          putResource(tableName, resId)
+        } ~
+          get {
+            getResource(tableName, resId)
+          } ~
+          delete {
+            deleteResource(tableName, resId)
+          }
+      case Some(Failure(e)) =>
+        logger.log(Level.WARNING, s"failed coercing resource id $id", e)
+        complete(StatusCodes.BadRequest, s"invalid resource id $id type")
+      case _ =>
+        logger.severe(s"unexpected coercion failure")
+        reject
+    }
+  }
+
 
   private def createResource(tableName:Symbol)=entity(as[Map[Symbol,Any]]){values =>
     val id = dbCrud.insert(tableName, values.toSeq :_*)
@@ -105,7 +120,8 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
   }
 
   private def putResource(tableName:Symbol, id:Any)= entity(as[Map[Symbol, Any]]){values=>
-    dbCrud.update()
+    logger.info(s"put resource $tableName with id $id")
+    dbCrud.update(tableName, id, values.toSeq :_*)
     getResource(tableName, id)
   }
 
@@ -114,7 +130,7 @@ class DbCrudRoute(dbCrud:DataCrud, config:Config = ConfigFactory.load()) extends
   }
 
   private def deleteResource(tableName:Symbol, id:Any)= complete{
-    "put resource"
+    "delete resource"
   }
 
 
