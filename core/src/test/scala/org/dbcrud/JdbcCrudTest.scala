@@ -2,6 +2,7 @@ package org.dbcrud
 
 import java.sql.Types
 import java.util.Date
+import javax.sql.DataSource
 
 import org.h2.jdbcx.JdbcDataSource
 import ColumnOps._
@@ -9,12 +10,8 @@ import ColumnOps._
 /**
  * Created by rinconj on 15/12/14.
  */
-class JdbcCrudTest extends org.specs2.mutable.Specification {
-  val dataSource = new ManagedDataSource({
-    val ds = new JdbcDataSource()
-    ds.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1")
-    ds
-  })
+abstract class JdbcCrudTest(ds:DataSource) extends org.specs2.mutable.Specification {
+  val dataSource = new ManagedDataSource(ds)
 
   val dbCrud = new JdbcCrud(dataSource)
 
@@ -42,6 +39,23 @@ class JdbcCrudTest extends org.specs2.mutable.Specification {
     val result = dbCrud.select('ACCOUNT, offset=1, count=2)
     result should haveSize(2)
     result.head[Int]('ID) should_== 2
-  }
+  }t
+
 
 }
+
+class H2SqlCrudTest extends JdbcCrudTest({
+  val ds = new JdbcDataSource()
+  ds.setUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1")
+  ds
+})
+
+class OracleSqlCrudTest extends JdbcCrudTest({
+  val ds = new oracle.jdbc.pool.OracleConnectionPoolDataSource()
+  ds.setURL("jdbc:oracle:thin:@localhost:49161:XE")
+  ds.setUser("crud_test")
+  ds.setPassword("crud_test")
+  ds
+})
+
+

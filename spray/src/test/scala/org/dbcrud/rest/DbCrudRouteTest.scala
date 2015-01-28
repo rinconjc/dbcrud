@@ -103,5 +103,10 @@ class DbCrudRouteTest extends Specification with Specs2RouteTest with HttpServic
     }
   }
 
+  "delete a record" in{
+    Delete(restPrefix + "/tasks/10") ~> dbCrudRoute ~> check{
+      status === OK
+    }
+  }
 
 }
