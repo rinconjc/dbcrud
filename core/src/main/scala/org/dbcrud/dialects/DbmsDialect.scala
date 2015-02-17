@@ -2,7 +2,7 @@ package org.dbcrud.dialects
 
 import java.sql.{PreparedStatement, Connection, Statement}
 
-import org.dbcrud.{Predicate, ColumnOrder}
+import org.dbcrud.{SqlInt, SqlType, Predicate, ColumnOrder}
 
 /**
  * Created by rinconj on 16/12/14.
@@ -12,6 +12,8 @@ import scalaz.Scalaz._
 trait DbmsDialect{
 
   def selectStatement(con:Connection, table:String, where:Predicate, offset:Int, limit:Int, orderBy:Seq[ColumnOrder]):PreparedStatement
+
+  def columnDef[T](sqlType: SqlType[T]):String
 
 }
 
@@ -28,4 +30,10 @@ trait SelectWithOffsetLimit{
     ps.setInt(count+2, offset)
     ps
   }
+}
+
+trait DefaultDialect{
+
+  protected def sqlTypeDefinition[SqlType[_], String]
+
 }

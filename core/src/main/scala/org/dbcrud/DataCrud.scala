@@ -1,5 +1,7 @@
 package org.dbcrud
 
+import org.dbcrud.dialects.DbmsDialect
+
 import scala.util.Try
 
 /**
@@ -41,7 +43,7 @@ class QueryData(columns: Seq[Symbol], rows: Iterable[Array[Any]]) extends Iterab
 
 trait DataCrud {
 
-  def createTable(name: Symbol, columns: (Symbol, Int)*)
+  def createTable(name: Symbol, columns: (Symbol, SqlType[_])*)
 
   def tableNames: Iterable[Symbol]
 

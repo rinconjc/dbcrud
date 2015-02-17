@@ -26,8 +26,8 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private lazy val typeMappings = ds.doWith{conn=>
     collect(conn.getMetaData.getTypeInfo, rs=>{
-      rs.getInt("DATA_TYPE")->rs.getString("TYPE_NAME")
-    }).toMap
+      SqlType.fromJdbcType(rs.getInt("DATA_TYPE"))->rs.getString("TYPE_NAME")
+    }).toMap.ensuring({x=>println(x); true})
   }
 
   private def inferDialect(ds:ManagedDataSource):Option[DbmsDialect]={
@@ -52,7 +52,7 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private def columns(table:String) = ds.doWith{conn=>
     collect(conn.getMetaData.getColumns(null,null,table,"%"), {rs=>
-      DbColumn(Symbol(rs.getString("COLUMN_NAME")), SqlType(rs.getInt("DATA_TYPE")), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
+      DbColumn(Symbol(rs.getString("COLUMN_NAME")), SqlType.fromJdbcType(rs.getInt("DATA_TYPE")), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
         rs.getInt("NULLABLE")==DatabaseMetaData.attributeNullable, rs.getString("IS_AUTOINCREMENT")=="YES", rs.getString("IS_GENERATEDCOLUMN")=="YES")
     })
   }
@@ -71,9 +71,9 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     else skip(rs, count-1)
   }
 
-  def createTable(name:Symbol, columns:(Symbol,Int)*){
+  def createTable(name:Symbol, columns:(Symbol,SqlType[_])*){
     ds.doWith{conn=>
-      val columnsLines = columns.map{case (colName, colType) => s"${colName.name} ${typeMappings(colType)}"}
+      val columnsLines = columns.map{case (colName, colType) => s"${colName.name} ${dialect.columnDef(colType)}"}
       val sql = s"CREATE TABLE ${name.name} (${columnsLines.mkString(",")})"
       logger.info(s"executing: $sql")
       conn.createStatement().execute(sql)
