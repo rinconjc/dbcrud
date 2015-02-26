@@ -20,7 +20,7 @@ abstract class JdbcCrudTest(ds:DataSource) extends org.specs2.mutable.Specificat
   }
 
   "list tables" in {
-    dbCrud.tableNames.toSet shouldEqual(Set("ACCOUNT", "TRANSACTION"))
+    dbCrud.tableNames.toSet shouldEqual(Set('ACCOUNT, 'TRANSACTION))
   }
 
   "insert data" in {
@@ -37,7 +37,7 @@ abstract class JdbcCrudTest(ds:DataSource) extends org.specs2.mutable.Specificat
     for(i<-2 to 10) dbCrud.insert('ACCOUNT, 'id->i, 'name->s"account $i", 'opened_at->new Date)
     val result = dbCrud.select('ACCOUNT, offset=1, count=2)
     result should haveSize(2)
-    result.head[Int]('ID) should_== 2
+    result.head[Long]('ID) should_== 2L
   }
 
 }

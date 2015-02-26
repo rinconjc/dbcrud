@@ -10,7 +10,7 @@ import scala.util.Try
  * Created by julio on 15/01/15.
  */
 object SqlType{
-  private val types:Map[Int, SqlType[_]] = Seq(SqlInt, SqlDouble, SqlBoolean, SqlString, SqlDate, SqlTimestamp).flatMap(t=>t.jdbcTypes.map(_->t)).toMap
+  private val types:Map[Int, SqlType[_]] = Seq(SqlInt, SqlDouble, SqlDecimal, SqlBoolean, SqlString, SqlDate, SqlTimestamp).flatMap(t=>t.jdbcTypes.map(_->t)).toMap
   def apply(jdbcType:Int) =  types(jdbcType)
   def get(jdbcType:Int) =  types.get(jdbcType)
 }
@@ -22,22 +22,22 @@ sealed trait SqlType[T]{
   def ddl(typeName:String, size:Int=0, nullable:Boolean = true) = s"$typeName ${if(nullable) "NULL" else "NOT NULL"}"
 }
 
-case object SqlInt extends SqlType[Int]{
-  override def fromString(value: String):Int = value.toInt
-
-  override def jdbcTypes: Set[Int] = Set(Types.INTEGER, Types.SMALLINT, Types.TINYINT)
-}
-
-case object SqlLong extends SqlType[Long]{
+case object SqlInt extends SqlType[Long]{
   override def fromString(value: String):Long = value.toLong
 
-  override def jdbcTypes: Set[Int] = Set(Types.INTEGER, Types.SMALLINT, Types.TINYINT)
+  override def jdbcTypes: Set[Int] = Set(Types.INTEGER, Types.SMALLINT, Types.TINYINT, Types.BIGINT)
 }
 
 case object SqlDouble extends SqlType[Double]{
   override def fromString(value: String): Double = value.toDouble
 
-  override def jdbcTypes: Set[Int] = Set(Types.NUMERIC, Types.DECIMAL, Types.FLOAT, Types.DOUBLE)
+  override def jdbcTypes: Set[Int] = Set(Types.FLOAT, Types.DOUBLE)
+}
+
+case object SqlDecimal extends SqlType[BigDecimal]{
+  override def fromString(value: String): BigDecimal = BigDecimal(value)
+
+  override def jdbcTypes: Set[Int] = Set(Types.DECIMAL)
 }
 
 case object SqlBoolean extends SqlType[Boolean]{
