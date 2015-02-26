@@ -9,6 +9,7 @@ import scala.annotation.tailrec
 import scala.util.{Failure, Try}
 import scalaz.Scalaz._
 
+
 class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDialect = null) extends DataCrud{
   private val logger  = Logger.getLogger(getClass.getName)
 
@@ -24,10 +25,10 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     }).toMap
   }
 
-  private lazy val typeMappings = ds.doWith{conn=>
+  private lazy val typeMappings:Map[SqlType[_], String] = ds.doWith{conn=>
     collect(conn.getMetaData.getTypeInfo, rs=>{
-      SqlType.fromJdbcType(rs.getInt("DATA_TYPE"))->rs.getString("TYPE_NAME")
-    }).toMap.ensuring({x=>println(x); true})
+      SqlType.get(rs.getInt("DATA_TYPE"))->rs.getString("TYPE_NAME")
+    }).toMap.filterKeys(_.isDefined).mapKeys(_.get)
   }
 
   private def inferDialect(ds:ManagedDataSource):Option[DbmsDialect]={
@@ -52,8 +53,8 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
 
   private def columns(table:String) = ds.doWith{conn=>
     collect(conn.getMetaData.getColumns(null,null,table,"%"), {rs=>
-      DbColumn(Symbol(rs.getString("COLUMN_NAME")), SqlType.fromJdbcType(rs.getInt("DATA_TYPE")), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
-        rs.getInt("NULLABLE")==DatabaseMetaData.attributeNullable, rs.getString("IS_AUTOINCREMENT")=="YES", rs.getString("IS_GENERATEDCOLUMN")=="YES")
+      DbColumn(Symbol(rs.getString("COLUMN_NAME")), SqlType(rs.getInt("DATA_TYPE")), rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"),
+        rs.getInt("NULLABLE")==DatabaseMetaData.attributeNullable, rs.getString("IS_AUTOINCREMENT")=="YES", false)
     })
   }
 
@@ -71,9 +72,12 @@ class JdbcCrud(ds: ManagedDataSource, schema:String=null, dbmsDialect: DbmsDiale
     else skip(rs, count-1)
   }
 
-  def createTable(name:Symbol, columns:(Symbol,SqlType[_])*){
+  def createTable(name:Symbol, columns:DbColumn[_]*){
     ds.doWith{conn=>
-      val columnsLines = columns.map{case (colName, colType) => s"${colName.name} ${dialect.columnDef(colType)}"}
+      val columnsLines = columns.map{col =>
+        val dbType = typeMappings(col.dbType)
+        s"${col.name.name} ${col.dbType.ddl(dbType, col.size, col.nullable)}"
+      }
       val sql = s"CREATE TABLE ${name.name} (${columnsLines.mkString(",")})"
       logger.info(s"executing: $sql")
       conn.createStatement().execute(sql)

@@ -9,19 +9,26 @@ import scala.util.Try
 /**
  * Created by julio on 15/01/15.
  */
-
 object SqlType{
   private val types:Map[Int, SqlType[_]] = Seq(SqlInt, SqlDouble, SqlBoolean, SqlString, SqlDate, SqlTimestamp).flatMap(t=>t.jdbcTypes.map(_->t)).toMap
-  def fromJdbcType(jdbcType:Int) =  types(jdbcType)
+  def apply(jdbcType:Int) =  types(jdbcType)
+  def get(jdbcType:Int) =  types.get(jdbcType)
 }
 
 sealed trait SqlType[T]{
   def fromString(value:String):T
   def fromString_?(value:String):Option[T] = Option(value).map(fromString)
   def jdbcTypes:Set[Int]
+  def ddl(typeName:String, size:Int=0, nullable:Boolean = true) = s"$typeName ${if(nullable) "NULL" else "NOT NULL"}"
 }
 
-case object SqlInt extends SqlType[Long]{
+case object SqlInt extends SqlType[Int]{
+  override def fromString(value: String):Int = value.toInt
+
+  override def jdbcTypes: Set[Int] = Set(Types.INTEGER, Types.SMALLINT, Types.TINYINT)
+}
+
+case object SqlLong extends SqlType[Long]{
   override def fromString(value: String):Long = value.toLong
 
   override def jdbcTypes: Set[Int] = Set(Types.INTEGER, Types.SMALLINT, Types.TINYINT)
@@ -43,6 +50,8 @@ case object SqlString extends SqlType[String]{
   override def fromString(value: String): String = value
 
   override def jdbcTypes: Set[Int] = Set(Types.CHAR, Types.VARCHAR, Types.NCHAR, Types.NVARCHAR)
+
+  override def ddl(typeName: String, size: Int=0, nullable: Boolean=true): String = s"$typeName($size) ${if(nullable) "NULL" else "NOT NULL"}"
 }
 
 

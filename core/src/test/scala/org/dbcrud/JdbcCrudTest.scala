@@ -1,11 +1,10 @@
 package org.dbcrud
 
-import java.sql.Types
 import java.util.Date
 import javax.sql.DataSource
 
+import org.dbcrud.ColumnOps._
 import org.h2.jdbcx.JdbcDataSource
-import ColumnOps._
 
 /**
  * Created by rinconj on 15/12/14.
@@ -16,8 +15,8 @@ abstract class JdbcCrudTest(ds:DataSource) extends org.specs2.mutable.Specificat
   val dbCrud = new JdbcCrud(dataSource)
 
   step{
-    dbCrud.createTable('ACCOUNT, 'id->Types.INTEGER, 'name -> Types.VARCHAR, 'opened_at -> Types.DATE)
-    dbCrud.createTable('TRANSACTION, 'id->Types.INTEGER, 'desc -> Types.VARCHAR, 'amount -> Types.DOUBLE)
+    dbCrud.createTable('ACCOUNT, DbColumn('id, SqlInt), DbColumn('name, SqlString, 50), DbColumn('opened_at, SqlDate))
+    dbCrud.createTable('TRANSACTION, DbColumn('id, SqlInt), DbColumn('desc, SqlString, 40), DbColumn('amount, SqlDate))
   }
 
   "list tables" in {
@@ -39,8 +38,7 @@ abstract class JdbcCrudTest(ds:DataSource) extends org.specs2.mutable.Specificat
     val result = dbCrud.select('ACCOUNT, offset=1, count=2)
     result should haveSize(2)
     result.head[Int]('ID) should_== 2
-  }t
-
+  }
 
 }
 

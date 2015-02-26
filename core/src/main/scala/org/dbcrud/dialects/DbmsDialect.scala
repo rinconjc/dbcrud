@@ -13,7 +13,7 @@ trait DbmsDialect{
 
   def selectStatement(con:Connection, table:String, where:Predicate, offset:Int, limit:Int, orderBy:Seq[ColumnOrder]):PreparedStatement
 
-  def columnDef[T](sqlType: SqlType[T]):String
+  def typeMapping:Map[SqlType[_], String]
 
 }
 
