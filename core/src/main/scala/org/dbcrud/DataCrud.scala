@@ -45,20 +45,20 @@ trait DataCrud {
 
   def tableNames: Iterable[Symbol]
 
-  def tableDef(table:Symbol):DbTable
+  def tableDef(table:Symbol):Option[DbTable]
 
-  def insert(table: Symbol, values: (Symbol, Any)*): Int
+  def insert(table: Symbol, values: (Symbol, Any)*): Try[Int]
 
-  def update(table: Symbol, id:Any, values: (Symbol, Any)*)
+  def update(table: Symbol, id:Any, values: (Symbol, Any)*):Try[Unit]
 
-  def updateAll(table: Symbol, values: (Symbol, Any)*): Int
+  def updateAll(table: Symbol, values: (Symbol, Any)*): Try[Int]
 
-  def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Int
+  def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Try[Int]
 
-  def delete(table: Symbol, id: Any): Int
+  def delete(table: Symbol, id: Any): Try[Int]
 
-  def select(table: Symbol, where: Predicate=EmptyPredicate, offset: Int=0, count: Int=10, orderBy: Seq[ColumnOrder]=Nil): QueryData
+  def select(table: Symbol, where: Predicate=EmptyPredicate, offset: Int=0, count: Int=10, orderBy: Seq[ColumnOrder]=Nil): Try[QueryData]
 
-  def selectById(table: Symbol, id:Any):Map[Symbol, Any]
+  def selectById(table: Symbol, id:Any):Try[Map[Symbol, Any]]
 }
 

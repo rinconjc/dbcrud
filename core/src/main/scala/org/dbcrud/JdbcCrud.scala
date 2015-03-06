@@ -11,6 +11,7 @@ import scalaz.Scalaz._
 
 
 class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDialect = null) extends DataCrud {
+
   private val logger = Logger.getLogger(getClass.getName)
 
   private lazy val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
@@ -21,22 +22,26 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
     val rs = conn.getMetaData.getTables(null, schema, "%", Array("TABLE"))
     collect(rs, { rs =>
       val tableName = Symbol(rs.getString("TABLE_NAME"))
-      tableName -> DbTable(tableName, columns(tableName.name), primaryKeys(tableName.name))
-    }).toMap
-  }
+      logger.info(s"table:$tableName")
+      for {
+        cols <- columns(tableName.name).toOption
+        pks <- primaryKeys(tableName.name).toOption
+      } yield tableName -> DbTable(tableName, cols, pks)
+    }).flatten.toMap
+  }.getOrElse(Map())
 
   private lazy val typeMappings: Map[SqlType[_], String] = dialect.map(_.typeMapping).getOrElse {
     ds.doWith { conn =>
       collect(conn.getMetaData.getTypeInfo, rs => {
         SqlType.get(rs.getInt("DATA_TYPE")) -> rs.getString("TYPE_NAME")
       }).toMap.filterKeys(_.isDefined).mapKeys(_.get)
-    }
+    }.getOrElse(Map())
   }
 
   private def inferDialect(ds: ManagedDataSource): Option[DbmsDialect] = {
     val dbms = ds.doWith(_.getMetaData.getDatabaseProductName)
 
-    Try(Class.forName(s"org.dbcrud.dialects.${dbms}SqlDialect")).recoverWith {
+    Try(Class.forName(s"org.dbcrud.dialects.${dbms.get}SqlDialect")).recoverWith {
       case e: Exception =>
         logger.warning(s"no dialect found in classpath: $e")
         Failure(e)
@@ -82,16 +87,17 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
       }
       val sql = s"CREATE TABLE ${name.name} (${columnsLines.mkString(",")})"
       logger.info(s"executing: $sql")
-      conn.createStatement().execute(sql)
+      val res = conn.createStatement().execute(sql)
+      logger.info(s"table created:$res")
     }
   }
 
-  override def tableNames: Iterable[Symbol] = tables.keys
+  override def tableNames = tables.keys
 
 
-  override def tableDef(table: Symbol) = tables(table)
+  override def tableDef(table: Symbol) = tables.get(table)
 
-  override def insert(table: Symbol, values: (Symbol, Any)*): Int = {
+  override def insert(table: Symbol, values: (Symbol, Any)*) = {
     val (cols, vals) = values.unzip
     ds.doWith { conn =>
       val stmt = conn.prepareStatement( s"""INSERT INTO ${table.name} (${cols.map(_.name).mkString(",")})
@@ -103,7 +109,7 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
     }
   }
 
-  override def update(table: Symbol, id: Any, values: (Symbol, Any)*): Unit = ds.doWith { conn =>
+  override def update(table: Symbol, id: Any, values: (Symbol, Any)*) = ds.doWith { conn =>
     val predicate = id match {
       case seq: Seq[(Symbol, Any)] => new SimpleConditions(seq)
       case other => tables(table).primaryKey.ensuring(_.size == 1).map(k => new SimpleConditions(Seq(k -> other))).head
@@ -111,11 +117,11 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
     updateWhere(table, predicate, values: _*)
   }
 
-  override def updateAll(table: Symbol, values: (Symbol, Any)*): Int = {
+  override def updateAll(table: Symbol, values: (Symbol, Any)*) = {
     updateWhere(table, EmptyPredicate, values: _*)
   }
 
-  override def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*): Int = {
+  override def updateWhere(table: Symbol, where: Predicate, values: (Symbol, Any)*) = {
     val (cols, vals) = values.unzip
     ds.doWith { conn =>
       val ps = conn.prepareStatement(s"UPDATE ${table.name} SET ${cols.map(_.name + " = ?").mkString(",")} ${where.whereSql}")
@@ -129,7 +135,7 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
     }
   }
 
-  override def delete(table: Symbol, id: Any): Int = ds.doWith { conn =>
+  override def delete(table: Symbol, id: Any) = ds.doWith { conn =>
     val predicate = id match {
       case seq: Seq[(Symbol, Any)] => new SimpleConditions(seq)
       case other => tables(table).primaryKey.ensuring(_.size == 1).map(k => new SimpleConditions(Seq(k -> other))).head
@@ -142,7 +148,7 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
   }
 
   override def select(table: Symbol, where: Predicate = EmptyPredicate, offset: Int = 0, count: Int = 0
-                      , orderBy: Seq[ColumnOrder] = Nil): QueryData = {
+                      , orderBy: Seq[ColumnOrder] = Nil): Try[QueryData] = {
     ds.doWith { conn =>
       val rs = (offset > 0).option().flatMap { _ =>
         dialect.map { d =>
@@ -164,7 +170,7 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
   }
 
 
-  override def selectById(table: Symbol, id: Any): Map[Symbol, Any] = ???
+  override def selectById(table: Symbol, id: Any): Try[Map[Symbol, Any]] = ???
 
   private def toQueryData(rs: ResultSet): QueryData = {
     val rsMeta = rs.getMetaData
@@ -173,5 +179,9 @@ class JdbcCrud(ds: ManagedDataSource, schema: String = null, dbmsDialect: DbmsDi
       Array.range(1, columns.size + 1).map(rs.getObject(_).asInstanceOf[Any])
     })
     new QueryData(columns, rows)
+  }
+
+  def execSql(sql: String) = ds.doWith{con=>
+    con.createStatement().execute(sql);
   }
 }
